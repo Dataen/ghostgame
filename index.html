@@ -1,0 +1,372 @@
+<head>
+  <title>Spill</title>
+</head>
+<body>
+  <canvas id="myCanvas" width="1000px" height="600px">
+    Canvas er ikke støttet.
+  </canvas>
+  <script src="random.js"></script>
+  <script>
+    var lol = document.getElementById("myCanvas");
+    var c = lol.getContext("2d");
+    var seed = prompt("Skriv inn seed (blankt for tilfeldig seed)");
+    var m = new MersenneTwister(seed);
+
+    var maxSize = 200;
+
+    function rand(){
+      return m.random();
+    }
+
+    function Potion(){
+      this.sizeX = 40;
+      this.sizeY = 40;
+      this.posX = rand()*(lol.width-this.sizeX);
+      this.posY = rand()*(lol.height-this.sizeY);
+      this.goalX = 10 + rand()*(maxSize-10);
+      this.goalY = 10 + rand()*(maxSize-10);
+    }
+
+    function Zzz(posX, posY){
+      this.life = 30;
+      this.posX = posX;
+      this.posY = posY;
+    }
+
+    function Wall(){
+      this.sizeX = 20;
+      this.sizeY = 20;
+      this.posX = rand()*(lol.width-this.sizeX);
+      this.posY = rand()*(lol.height-this.sizeY);
+    }
+
+    var picture = new Image();
+    picture.src = "Untitled.png";
+
+    var heart = new Image();
+    heart.src = "heart.png";
+
+    var powerUp = new Image();
+    powerUp.src = "powerup.png";
+
+    var ghost = new Image();
+    ghost.src = "ghost.png";
+    var ghostFlip = new Image();
+    ghostFlip.src = "ghostflip.png";
+
+    var posX = 20;
+    var posY = 20;
+
+    var sizeX = 40;
+    var sizeY = 40;
+
+    var goalX = sizeX;
+    var goalY = sizeY;
+
+
+    var sX = 40;
+    var sY = 40;
+
+    var zzzliste = [];
+
+    var up, down, left, right = false;
+
+    var poeng = 0;
+    var liv = 3;
+
+    var gameOver = false;
+
+    var ghostSleeping = true;
+
+    var ex = lol.width/2;
+    var ey = lol.height/2;
+
+    var level = 1;
+
+    var liste = [];
+    spawnPotions();
+
+    var powerup = false;
+
+
+    var totalareal = 0;
+
+    var walls = [];
+    for (var i=0; i<5; i++){
+      spawnWall();
+    }
+
+    picture.onload = function(){
+      requestAnimationFrame(draw);
+    }
+
+    function eatPotion(index){
+      var potion = liste[index];
+      goalX = potion.goalX;
+      goalY = potion.goalY;
+      liste.splice(index, 1);
+      poeng++;
+    }
+
+    function wakeGhost(){
+      ghostSleeping = false;
+      console.log("I'm awake!");
+    }
+
+    function sleepGhost(){
+      ghostSleeping = true;
+      console.log("I'll sleep!");
+    }
+
+    function spawnPotions(){
+        totalareal = 0;
+        for (var i=0; i<10; i++){
+          var p = spawnPotion();
+          totalareal += p.goalX*p.goalY;
+        }
+    }
+
+    function spawnWall(){
+        var wall = new Wall();
+        while(intersectRect(wall)){
+          console.log("Jeg spawnet inni spilleren, jeg spawner på nytt!");
+          wall = new Wall();
+        }
+        walls.push(wall);
+    }
+
+    function spawnPotion(){
+        var p = new Potion();
+        while(intersectRect(p)){
+          console.log("Jeg spawnet inni spilleren, jeg spawner på nytt!");
+          p = new Potion();
+        }
+        liste.push(p);
+        return p;
+    }
+
+    function intersectRect(r2) {
+      return !(r2.posX > posX+sizeX ||
+               r2.posX + r2.sizeX < posX ||
+               r2.posY > posY+sizeY ||
+               r2.posY + r2.sizeY < posY);
+    }
+
+    function draw(){
+      c.clearRect(0, 0, lol.width, lol.height);
+
+      c.strokeStyle = "black";
+      c.strokeRect(0, 0, lol.width, lol.height);
+
+      for (var i=liste.length-1; i>=0; i--){
+          var potion = liste[i];
+
+          c.drawImage(picture, potion.posX, potion.posY, potion.sizeX, potion.sizeY);
+          var areal = potion.goalX * potion.goalY;// XXX:
+          var spillerAreal = goalX * goalY;
+          if (areal < spillerAreal){
+            c.fillStyle = "green";
+          }else{
+            c.fillStyle = "red";
+          }
+          c.beginPath();
+          c.arc(potion.posX + potion.sizeX/2, potion.posY + potion.sizeY/2,5,0,2*Math.PI);
+          c.fill();
+          c.closePath();
+
+
+          if (intersectRect(potion)){
+            eatPotion(i);
+            if (liste.length <= 0){
+			  posX = 20;
+			  posY = 20;
+			  sizeX = 40;
+			  sizeY = 40;
+			  goalX = 40;
+			  goalY = 40;
+              if (liv == 3) powerup = true;
+              spawnPotions();
+              if (totalareal < 100000) {
+                wakeGhost();
+              }else{
+                sleepGhost();
+              }
+              for (var j=0; j<Math.ceil(level/2)+(3-liv); j++){
+                spawnWall();
+              }
+              level++;
+              if (liv < 3){
+                liv++;
+              }
+            }
+          }
+      }
+
+      for (var i=walls.length-1; i>=0; i--){
+          var wall = walls[i];
+
+          c.fillStyle = "grey";
+          c.fillRect(wall.posX,wall.posY,wall.sizeX,wall.sizeY);
+          if (intersectRect(wall)){
+            liv--;
+            walls.splice(i, 1);
+
+            if (liv <= 0){
+              gameOver = true;
+            }
+          }
+        }
+
+      c.fillStyle = "green";
+      c.fillRect(posX,posY,sizeX,sizeY);
+
+      var sx = ex - (posX+sizeX/2);
+      var sy = ey - (posY+sizeY/2);
+
+      if (ghostSleeping) sx = 1;
+
+      if (sx > 0){
+        c.drawImage(ghostFlip, ex, ey, 60, 60);
+      }else{
+        c.drawImage(ghost, ex, ey, 60, 60);
+      }
+
+      if(intersectRect({posX: ex, posY: ey, sizeX: 60, sizeY: 60}) && !ghostSleeping){
+        goalX++;
+        goalY++;
+      }
+
+      if (ghostSleeping){
+        if (rand() < 0.3 && zzzliste.length < 3) zzzliste.push(new Zzz(ex + 30, ey + 30));
+
+        for(var i=zzzliste.length-1; i>=0; i--){
+            var zzz = zzzliste[i];
+            c.fillStyle = "black";
+            c.textAlign = "center";
+            var size = 30 - zzz.life;
+            c.font = size+"px Verdana";
+            c.fillText("Z", zzz.posX, zzz.posY);
+            zzz.life -= rand()*2;
+            if (zzz.life < 0){
+              zzzliste.splice(i, 1);
+            }
+        }
+    }
+
+      if (ghostSleeping){
+        //ex -= sx / 600;
+        //ey -= sy / 600;
+      }else{
+        ex -= sx / 500;
+        ey -= sy / 500;
+      }
+
+
+
+      var speed = 4*(1-(spillerAreal / (maxSize*maxSize))) + 2;
+
+      if (up) {
+        posY = posY - speed;
+      }
+      if (down) {
+        posY = posY + speed;
+      }
+      if (left) {
+        posX = posX - speed;
+      }
+      if (right) {
+        posX = posX + speed;
+      }
+
+      if (posX < 0){
+        posX=0;
+      }
+      if (posX > lol.width-sizeX){
+        posX=lol.width-sizeX;
+      }
+      if (posY < 0){
+        posY=0;
+      }
+      if (posY > lol.height-sizeY){
+        posY=lol.height-sizeY;
+      }
+
+      if (sizeX < goalX){
+        posX-=.5;
+        sizeX++;
+      }
+      if (sizeX > goalX){
+        posX+=.5;
+        sizeX--;
+      }
+      if (sizeY < goalY){
+        posY-=.5;
+        sizeY++;
+      }
+      if (sizeY > goalY){
+        posY+=.5;
+        sizeY--;
+      }
+
+      for (var i=0; i<liv; i++){
+        c.drawImage(heart, 10 + i*(sX+5), lol.height - sY - 10, sX, sY);
+      }
+      if (powerup) c.drawImage(powerUp, 10, lol.height - 165, 40, 40);
+      c.textAlign = "left";
+      c.fillStyle = "black";
+      c.font = "20px Verdana";
+      c.fillText("Points: " + poeng, 10, lol.height - sY - 65);
+      c.fillText("Level: " + level, 10, lol.height - sY - 40);
+      c.fillText("Stars left: " + liste.length, 10, lol.height - sY - 15);
+      if (!gameOver){
+        requestAnimationFrame(draw);
+      }else{
+        c.textAlign = "left";
+        c.fillStyle = "purple";
+        c.textAlign = "center";
+        c.font = "35px Verdana";
+        c.fillText("Game Over", lol.width/2, lol.height/2);
+        c.font = "20px Verdana";
+        c.fillText("Seed: " + seed, lol.width/2, lol.height/2 + 40);
+      }
+    }
+
+    window.addEventListener("keydown", function(e){
+      if(e.keyCode == 38){
+        up = true;
+      }
+      if(e.keyCode == 40){
+        down = true;
+      }
+      if(e.keyCode == 37){
+        left = true;
+      }
+      if(e.keyCode == 39){
+        right = true;
+      }
+    });
+
+    window.addEventListener("keyup", function(e){
+      if(e.keyCode == 38){
+        up = false;
+      }
+      if(e.keyCode == 40){
+        down = false;
+      }
+      if(e.keyCode == 37){
+        left = false;
+      }
+      if(e.keyCode == 39){
+        right = false;
+      }
+      if (e.keyCode == 32){
+        if (powerup){
+          powerup = false;
+          goalX = 20;
+          goalY = 20;
+        }
+      }
+    });
+
+  </script>
+</body>
